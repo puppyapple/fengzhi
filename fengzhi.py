@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np 
 import sys
 
-
-
-def grow_factor(end_year,season,num_year):
+def grow_factor(end_year, season, num_year):
     # 成长因子：主营业务三年复合增长率，净利润三年复合增长率，内部收益率
     df_profit_old = ts.get_profit_data(end_year-num_year,season)[["name","code","roe","business_income","net_profits"]]
     df_profit_new = ts.get_profit_data(end_year,season)[["name","code","roe","business_income","net_profits"]]
@@ -21,8 +19,22 @@ def grow_factor(end_year,season,num_year):
     #list_new_stocks = list(ts.new_stocks().code)
     #df_profit = df_profit[df_profit.name.map(lambda x: x not in list_new_stocks)]
 
-    data["roe_rate"] = (data["roe_new"]/data["roe_old"])**(1/3) - 1
-    data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1/3) - 1
-    data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1/3) - 1
+    data["roe_rate"] = (data["roe_new"]/data["roe_old"])**(1.0/num_year) - 1
+    data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1.0/num_year) - 1
+    data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1.0/num_year) - 1
     return data
 
+def value_factor(end_year, season):
+    #价值因子：每股收益与价格比率、每股经营现金流与价格比率、每股净资产与价格比率、股息收益率
+    df_report_new = ts.get_profit_data(end_year,season)[["name","code","esp","epcf","bvps"]]
+    df_new_price = ts.get_today_all()[["name","code","close"]]
+
+    data = pd.merge(df_report_new, df_new_price, how='inner')
+
+    # 去掉ST股
+    data = data[data.name.map(lambda x: "ST" not in x)]
+
+    data["esp_rate"] = data["esp"]/data["close"]
+    data["epcf_rate"] = data["epcf"]/data["close"]
+    data["bvps_rate"] = data["bvps"]/data["close"]
+    return data
