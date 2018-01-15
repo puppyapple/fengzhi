@@ -22,7 +22,7 @@ def grow_factor(end_year, season, num_year):
     data["roe_rate"] = (data["roe_new"]/data["roe_old"])**(1.0/num_year) - 1
     data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1.0/num_year) - 1
     data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1.0/num_year) - 1
-    return data
+    return data[["name","code","roe_rate","bi_rate","ne_rate"]]
 
 def value_factor(end_year, season):
     #价值因子：每股收益与价格比率、每股经营现金流与价格比率、每股净资产与价格比率、股息收益率
@@ -37,4 +37,7 @@ def value_factor(end_year, season):
     data["esp_rate"] = data["esp"]/data["close"]
     data["epcf_rate"] = data["epcf"]/data["close"]
     data["bvps_rate"] = data["bvps"]/data["close"]
-    return data
+    return data[["name","code","esp_rate","epcf_rate","bvps_rate","interest_rate"]]
+
+def process_data(df_grow, df_value):
+    data = pd.merge(df_grow, df_value, how='inner')[["name","code","roe_rate","bi_rate","ne_rate","esp_rate","epcf_rate","bvps_rate","interest_rate"]]
