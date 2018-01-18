@@ -49,7 +49,11 @@ def process_data(df_grow, df_value):
     '''
     合并因子数据并作处理
     '''
+    def test(a,p,q) : return  p*(a<p) + q*(a>q) + a*(p<=a<=q)
     data = pd.merge(df_grow, df_value, how='inner')
     df_index = data[["code", "name"]]
     df_factor = data[["roe_rate", "bi_rate", "ne_rate", "esp_rate", "epcf_rate", "bvps_rate"]]
-    np.percentile(df_factor, 95)
+    quantile_05 = dict(df_factor.quantile(0.05))
+    quantile_95 = dict(df_factor.quantile(0.95))
+    df_factor = df_factor.apply(lambda x: test(x, quantile_05[x.name], quantile_95[x.name]))
+    
