@@ -27,17 +27,18 @@ def grow_factor(end_year, season, num_year):
     data["roe_rate"] = (data["roe_new"]/data["roe_old"])**(1.0/num_year) - 1
     data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1.0/num_year) - 1
     data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1.0/num_year) - 1
-    return data[["name", "code", "roe_rate", "bi_rate", "ne_rate"]]
+    print("grow_factor dataframe length: " + str(len(data)))
+    return data[["name", "code", "roe_rate", "bi_rate", "ne_rate"]].fillna(0.0)
 
 def value_factor(end_year, season):
     '''
     计算价值因子
     '''
     #价值因子：每股收益与价格比率、每股经营现金流与价格比率、每股净资产与价格比率、股息收益率
-    df_report_new = ts.get_report_data(end_year, season)[["name", "code", "esp", "epcf", "bvps"]]
-    df_new_price = ts.get_today_all()[["name", "code", "close"]]
+    df_report_new = ts.get_report_data(end_year, season)[["name", "code", "eps", "epcf", "bvps"]]
+    df_new_price = ts.get_today_all()[["name", "code", "settlement"]]
     file = "2005_2011.csv" if end_year in range(2005,2012) else "2012_2018.csv"
-    df_interest = pd.read_csv(file, header=True)["code", str(end_year)]
+    df_interest = pd.read_csv(file, dtype={'code':str})[["code", str(end_year)]]
     df_interest.columns = ["code", "interest_rate"]
     data = pd.merge(df_report_new, df_new_price, how='inner')
     data = pd.merge(data, df_interest, how='inner')
@@ -45,34 +46,36 @@ def value_factor(end_year, season):
     # 去掉ST股
     data = data[data.name.map(lambda x: "ST" not in x)]
 
-    data["esp_rate"] = data["esp"]/data["close"]
-    data["epcf_rate"] = data["epcf"]/data["close"]
-    data["bvps_rate"] = data["bvps"]/data["close"]
-    return data[["name", "code", "esp_rate", "epcf_rate", "bvps_rate", "interest_rate"]]
+    data["eps_rate"] = data["eps"]/data["settlement"]
+    data["epcf_rate"] = data["epcf"]/data["settlement"]
+    data["bvps_rate"] = data["bvps"]/data["settlement"]
+
+    print("value_factor dataframe length: " + str(len(data)))
+    return data[["name", "code", "eps_rate", "epcf_rate", "bvps_rate", "interest_rate"]].fillna(0.0)
 
 def process_data(df_grow, df_value):
     '''
     合并因子数据并作处理
     '''
     def extreme_cut(a,p,q) : return  p*(a<p) + q*(a>q) + a*((a<=q)&(a>=p))
-    
+
     data = pd.merge(df_grow, df_value, how='inner')
     df_index = data[["code", "name"]]
-    df_factor = data[["roe_rate", "bi_rate", "ne_rate", "esp_rate", "epcf_rate", "bvps_rate"]]
+    df_factor = data[["roe_rate", "bi_rate", "ne_rate", "eps_rate", "epcf_rate", "bvps_rate","interest_rate"]]
     quantile_05 = dict(df_factor.quantile(0.05))
     quantile_95 = dict(df_factor.quantile(0.95))
 
     #上下极值用0.05和0.95分位数替换
-    df_factor = df_factor.apply(lambda x: extreme_cut(x, quantile_05[x.name], quantile_95[x.name]))
+    df_factor = df_factor.apply(lambda x: extreme_cut(x, quantile_05[x.name], quantile_95[x.name])).fillna(0.0)
     
     #Z-score处理
     df_factor = DataFrame(preprocessing.scale(df_factor.values), index=df_factor.index, columns=df_factor.columns)
-    final = pd.concat([df_index, df_factor])
-    return final
+    final = pd.concat([df_index, df_factor], axis=1).fillna(0.0)
+    return final.drop_duplicates().round(4)
 
 def load_data(end_year, season, num_year):
     return process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
 
 test = load_data(2016, 4, 3)    
 print(test)
-    
+test.to_csv("2016_4_3", index=False)
