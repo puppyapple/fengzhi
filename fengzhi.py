@@ -1,6 +1,8 @@
 import tushare as ts
 import pandas as pd 
 import numpy as np 
+from pandas import DataFrame
+from sklearn import preprocessing
 import sys
 
 def grow_factor(end_year, season, num_year):
@@ -32,10 +34,13 @@ def value_factor(end_year, season):
     计算价值因子
     '''
     #价值因子：每股收益与价格比率、每股经营现金流与价格比率、每股净资产与价格比率、股息收益率
-    df_report_new = ts.get_profit_data(end_year, season)[["name", "code", "esp", "epcf", "bvps"]]
+    df_report_new = ts.get_report_data(end_year, season)[["name", "code", "esp", "epcf", "bvps"]]
     df_new_price = ts.get_today_all()[["name", "code", "close"]]
-
+    file = "2005_2011.csv" if end_year in range(2005,2012) else "2012_2018.csv"
+    df_interest = pd.read_csv(file, header=True)["code", str(end_year)]
+    df_interest.columns = ["code", "interest_rate"]
     data = pd.merge(df_report_new, df_new_price, how='inner')
+    data = pd.merge(data, df_interest, how='inner')
 
     # 去掉ST股
     data = data[data.name.map(lambda x: "ST" not in x)]
@@ -43,17 +48,31 @@ def value_factor(end_year, season):
     data["esp_rate"] = data["esp"]/data["close"]
     data["epcf_rate"] = data["epcf"]/data["close"]
     data["bvps_rate"] = data["bvps"]/data["close"]
-    return data[["name", "code", "esp_rate", "epcf_rate", "bvps_rate"]]
+    return data[["name", "code", "esp_rate", "epcf_rate", "bvps_rate", "interest_rate"]]
 
 def process_data(df_grow, df_value):
     '''
     合并因子数据并作处理
     '''
-    def test(a,p,q) : return  p*(a<p) + q*(a>q) + a*(p<=a<=q)
+    def extreme_cut(a,p,q) : return  p*(a<p) + q*(a>q) + a*((a<=q)&(a>=p))
+    
     data = pd.merge(df_grow, df_value, how='inner')
     df_index = data[["code", "name"]]
     df_factor = data[["roe_rate", "bi_rate", "ne_rate", "esp_rate", "epcf_rate", "bvps_rate"]]
     quantile_05 = dict(df_factor.quantile(0.05))
     quantile_95 = dict(df_factor.quantile(0.95))
-    df_factor = df_factor.apply(lambda x: test(x, quantile_05[x.name], quantile_95[x.name]))
+
+    #上下极值用0.05和0.95分位数替换
+    df_factor = df_factor.apply(lambda x: extreme_cut(x, quantile_05[x.name], quantile_95[x.name]))
+    
+    #Z-score处理
+    df_factor = DataFrame(preprocessing.scale(df_factor.values), index=df_factor.index, columns=df_factor.columns)
+    final = pd.concat([df_index, df_factor])
+    return final
+
+def load_data(end_year, season, num_year):
+    return process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
+
+test = load_data(2016, 4, 3)    
+print(test)
     
