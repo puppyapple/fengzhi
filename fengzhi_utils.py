@@ -76,12 +76,12 @@ def process_data(df_grow, df_value):
 
 def load_data(end_year, season, num_year):
     file = str(end_year) + "_" + str(season) + "_" + str(num_year)
-    if (os.path.exists(file))：
+    if os.path.exists(file):
         return pd.read_csv(file, dtype={'code':str})
     else:
         data = process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
         data.to_csv(file, index=False)
         return data
 
-test = load_data(2016, 4, 3)    
-print(test)
+#test = load_data(2016, 4, 3)    
+#print(test)
