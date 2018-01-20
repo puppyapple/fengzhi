@@ -1,6 +1,7 @@
 import tushare as ts
 import pandas as pd 
 import numpy as np 
+import os
 from pandas import DataFrame
 from sklearn import preprocessing
 import sys
@@ -28,7 +29,7 @@ def grow_factor(end_year, season, num_year):
     data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1.0/num_year) - 1
     data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1.0/num_year) - 1
     print("grow_factor dataframe length: " + str(len(data)))
-    return data[["name", "code", "roe_rate", "bi_rate", "ne_rate"]].fillna(0.0)
+    return data[["name", "code", "roe_rate", "bi_rate", "ne_rate"]].drop_duplicates().fillna(0.0)
 
 def value_factor(end_year, season):
     '''
@@ -51,7 +52,7 @@ def value_factor(end_year, season):
     data["bvps_rate"] = data["bvps"]/data["settlement"]
 
     print("value_factor dataframe length: " + str(len(data)))
-    return data[["name", "code", "eps_rate", "epcf_rate", "bvps_rate", "interest_rate"]].fillna(0.0)
+    return data[["name", "code", "eps_rate", "epcf_rate", "bvps_rate", "interest_rate"]].drop_duplicates().fillna(0.0)
 
 def process_data(df_grow, df_value):
     '''
@@ -70,12 +71,17 @@ def process_data(df_grow, df_value):
     
     #Z-score处理
     df_factor = DataFrame(preprocessing.scale(df_factor.values), index=df_factor.index, columns=df_factor.columns)
-    final = pd.concat([df_index, df_factor], axis=1).fillna(0.0)
-    return final.drop_duplicates().round(4)
+    final = pd.concat([df_index, df_factor], axis=1).fillna(0.0).drop_duplicates().round(4)
+    return final
 
 def load_data(end_year, season, num_year):
-    return process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
+    file = str(end_year) + "_" + str(season) + "_" + str(num_year)
+    if (os.path.exists(file))：
+        return pd.read_csv(file, dtype={'code':str})
+    else:
+        data = process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
+        data.to_csv(file, index=False)
+        return data
 
 test = load_data(2016, 4, 3)    
 print(test)
-test.to_csv("2016_4_3", index=False)
