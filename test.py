@@ -3,10 +3,10 @@ import pandas as pd
 from functools import reduce
 
 def inner(df1, df2):
-    return pd.merge(df1, df2, how='inner', on='code')
+    return pd.merge(df1, df2, how='inner', on=['code', 'name'])
 
 factors_by_year = {}
-for i in range(2014, 2017):
+for i in range(2016, 2017):
     factors_by_year[i] = fengzhi_utils.load_data(i, 4, 3)
 
 for key, value in factors_by_year.items():

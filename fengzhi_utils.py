@@ -11,13 +11,17 @@ def grow_factor(end_year, season, num_year):
     计算成长因子
     '''
     # 成长因子：主营业务三年复合增长率，净利润三年复合增长率，内部收益率
+    time_limit = 10000 * (end_year - num_year) + 430
+    df_st_list = ts.get_stock_basics().reset_index()
+    df_st_list = df_st_list[df_st_list.timeToMarket<=time_limit][["code", "name", "timeToMarket"]]
     df_profit_old = ts.get_profit_data(end_year-num_year, season)[["name", "code", "roe", "business_income", "net_profits"]]
     df_profit_new = ts.get_profit_data(end_year, season)[["name", "code", "roe", "business_income", "net_profits"]]
     df_profit_old.columns = ["name", "code", "roe_old", "business_income_old", "net_profits_old"]
     df_profit_new.columns = ["name", "code", "roe_new", "business_income_new", "net_profits_new"]
 
     data = pd.merge(df_profit_new, df_profit_old, how='inner')
-
+    data = pd.merge(data, df_st_list, how='inner')
+    #print(data)
     # 去掉ST股
     data = data[data.name.map(lambda x: "ST" not in x)]
 
@@ -28,7 +32,7 @@ def grow_factor(end_year, season, num_year):
     data["roe_rate"] = (data["roe_new"]/data["roe_old"])**(1.0/num_year) - 1
     data["bi_rate"] = (data["business_income_new"]/data["business_income_old"])**(1.0/num_year) - 1
     data["ne_rate"] = (data["net_profits_new"]/data["net_profits_old"])**(1.0/num_year) - 1
-    print("grow_factor dataframe length: " + str(len(data)))
+    #print("grow_factor dataframe length: " + str(len(data)))
     return data[["name", "code", "roe_rate", "bi_rate", "ne_rate"]].drop_duplicates().fillna(0.0)
 
 def value_factor(end_year, season):
@@ -51,7 +55,7 @@ def value_factor(end_year, season):
     data["epcf_rate"] = data["epcf"]/data["settlement"]
     data["bvps_rate"] = data["bvps"]/data["settlement"]
 
-    print("value_factor dataframe length: " + str(len(data)))
+    #print("value_factor dataframe length: " + str(len(data)))
     return data[["name", "code", "eps_rate", "epcf_rate", "bvps_rate", "interest_rate"]].drop_duplicates().fillna(0.0)
 
 def process_data(df_grow, df_value):
@@ -80,7 +84,7 @@ def load_data(end_year, season, num_year):
         return pd.read_csv(file, dtype={'code':str})
     else:
         data = process_data(grow_factor(end_year, season, num_year), value_factor(end_year, season))
-        data.to_csv(file, index=False)
+        data.to_csv(file, index=False, encoding='utf-8')
         return data
 
 #test = load_data(2016, 4, 3)    
