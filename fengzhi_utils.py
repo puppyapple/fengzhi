@@ -91,13 +91,21 @@ def load_data(end_year, season, num_year):
 def get_day_close(code, price_type, date):
     delta_day = datetime.timedelta(days=1)
     formatted_date = datetime.datetime.strptime(date,'%Y-%m-%d')  
-    price = ts.get_k_data(code, start=date, end=date)[price_type]
+    price = ts.get_k_data(code, start=date, end=date)
     #print("test:")
     #print(price)
     while price.empty:
         formatted_date = formatted_date - delta_day
         date = formatted_date.strftime('%Y-%m-%d')
-        #print(date)
-        price = ts.get_k_data(code, start=date, end=date)[price_type]
-        #print(price,code)
-    return list(price)[0]
+        #print(code, date)
+        price = ts.get_k_data(code, start=date, end=date)
+        #print(price[price_type])
+    return list(price[price_type])[0]
+
+def get_increase(code, price_type, start_day, end_day):
+    price_hist = ts.get_k_data(code, start=start_day, end=end_day)
+    if price_hist.empty:
+        return 0.0
+    else:
+        price_list = list(price_hist[price_type])
+        return (price_list[-1]-price_list[0])/price_list[0]
