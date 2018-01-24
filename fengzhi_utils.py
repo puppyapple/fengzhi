@@ -2,19 +2,20 @@ import tushare as ts
 import pandas as pd 
 import numpy as np 
 import os
+import datetime
+import sys
 from pandas import DataFrame
 from sklearn import preprocessing
-import sys
 
 def grow_factor(end_year, season, num_year):
     '''
     计算成长因子
     '''
     # 成长因子：主营业务三年复合增长率，净利润三年复合增长率，内部收益率
-    time_limit = 10000 * (end_year - num_year) + 430
+    time_limit = 10000 * (end_year - num_year + 1) + 430
     df_st_list = ts.get_stock_basics().reset_index()
     df_st_list = df_st_list[df_st_list.timeToMarket<=time_limit][["code", "name", "timeToMarket"]]
-    df_profit_old = ts.get_profit_data(end_year-num_year, season)[["name", "code", "roe", "business_income", "net_profits"]]
+    df_profit_old = ts.get_profit_data(end_year-num_year+1, season)[["name", "code", "roe", "business_income", "net_profits"]]
     df_profit_new = ts.get_profit_data(end_year, season)[["name", "code", "roe", "business_income", "net_profits"]]
     df_profit_old.columns = ["name", "code", "roe_old", "business_income_old", "net_profits_old"]
     df_profit_new.columns = ["name", "code", "roe_new", "business_income_new", "net_profits_new"]
@@ -87,5 +88,16 @@ def load_data(end_year, season, num_year):
         data.to_csv(file, index=False, encoding='utf-8')
         return data
 
-#test = load_data(2016, 4, 3)    
-#print(test)
+def get_day_close(code, price_type, date):
+    delta_day = datetime.timedelta(days=1)
+    formatted_date = datetime.datetime.strptime(date,'%Y-%m-%d')  
+    price = ts.get_k_data(code, start=date, end=date)[price_type]
+    #print("test:")
+    #print(price)
+    while price.empty:
+        formatted_date = formatted_date - delta_day
+        date = formatted_date.strftime('%Y-%m-%d')
+        #print(date)
+        price = ts.get_k_data(code, start=date, end=date)[price_type]
+        #print(price,code)
+    return list(price)[0]
